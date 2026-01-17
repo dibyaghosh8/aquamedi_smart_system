@@ -1,0 +1,54 @@
+CODE FOR AUTO PUMP
+
+
+
+// Pin definitions
+const int trigPin = 10;
+const int echoPin = 11;
+const int relayPin = 7;
+
+// Distance threshold (cm)
+const int distanceThreshold = 10;
+
+void setup() {
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(relayPin, OUTPUT);
+
+  digitalWrite(relayPin, HIGH); // Pump OFF initially (active LOW relay)
+  Serial.begin(9600);
+}
+
+void loop() {
+  long duration;
+  int distance;
+
+  // Ultrasonic trigger
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  // Read echo
+  duration = pulseIn(echoPin, HIGH, 30000);
+
+  // Convert to cm
+  distance = duration * 0.034 / 2;
+
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+
+  if (distance > 0 && distance <= distanceThreshold) {
+    // Hand detected → Pump ON
+    Serial.println("Hand detected - Pump ON");
+    digitalWrite(relayPin, LOW);   // Relay ON
+  } else {
+    // Hand removed → Pump OFF
+    Serial.println("Hand removed - Pump OFF");
+    digitalWrite(relayPin, HIGH);  // Relay OFF
+  }
+
+  delay(200);
+}

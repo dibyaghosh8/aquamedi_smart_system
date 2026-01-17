@@ -1,0 +1,98 @@
+CODE FOR LCD WITH BUZZER
+
+
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <NewPing.h>
+
+// ---------- Pins ----------
+#define TRIG_PIN 12
+#define ECHO_PIN 13
+#define BUZZER_PIN 9
+
+// ---------- Tank Settings ----------
+#define TANK_HEIGHT 19       // cm
+#define ALERT_PERCENT 60     // 60%
+#define MIN_BUZZ_TIME 5000   // 5 seconds
+
+// ---------- LCD ----------
+LiquidCrystal_I2C lcd(0x3F, 16, 2);
+
+// ---------- Ultrasonic ----------
+NewPing sonar(TRIG_PIN, ECHO_PIN, TANK_HEIGHT);
+
+// ---------- Buzzer control ----------
+unsigned long buzzerStart = 0;
+bool buzzerOn = false;
+
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  lcd.init();
+  lcd.backlight();
+
+  lcd.setCursor(0, 0);
+  lcd.print("Water Level");
+  lcd.setCursor(0, 1);
+  lcd.print("System Ready");
+  delay(2000);
+  lcd.clear();
+}
+
+void loop() {
+  delay(500);
+
+  int distance = sonar.ping_cm();
+
+  lcd.clear();
+
+  if (distance == 0 || distance > TANK_HEIGHT) {
+    lcd.setCursor(0, 0);
+    lcd.print("Sensor Error!");
+    lcd.setCursor(0, 1);
+    lcd.print("Check Sensor");
+    digitalWrite(BUZZER_PIN, LOW);
+    buzzerOn = false;
+    return;
+  }
+
+  int waterHeight = TANK_HEIGHT - distance;
+  int waterPercent = (waterHeight * 100) / TANK_HEIGHT;
+
+  // -------- Serial Monitor --------
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.print(" cm | Water: ");
+  Serial.print(waterPercent);
+  Serial.println(" %");
+
+  // -------- LCD Line 1 --------
+  lcd.setCursor(0, 0);
+  lcd.print("Level: ");
+  lcd.print(waterPercent);
+  lcd.print("%");
+
+  // -------- LCD Line 2 (Bar) --------
+  lcd.setCursor(0, 1);
+  int bars = map(waterPercent, 0, 100, 0, 16);
+  for (int i = 0; i < bars; i++) {
+    lcd.print("|");
+  }
+
+  // -------- Buzzer Logic --------
+  if (waterPercent >= ALERT_PERCENT) {
+    if (!buzzerOn) {
+      buzzerOn = true;
+      buzzerStart = millis();
+      digitalWrite(BUZZER_PIN, HIGH);
+    }
+  }
+
+  if (buzzerOn && millis() - buzzerStart >= MIN_BUZZ_TIME) {
+    digitalWrite(BUZZER_PIN, LOW);
+    buzzerOn = false;
+  }
+}
